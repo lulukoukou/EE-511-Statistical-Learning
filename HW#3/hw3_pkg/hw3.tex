@@ -1,0 +1,296 @@
+\documentclass[letterpaper]{article}
+\title{EE 511 Machine Learning, Winter 2018 \\ Homework 3}
+\date{Due: Wednesday, Feb $14$, beginning of class}
+\usepackage{hyperref}
+
+\usepackage[margin=1.5in]{geometry}
+
+\usepackage{amsmath,amsfonts}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{enumerate}
+\usepackage{bbm}
+\providecommand{\m}[1]{\mathbf{#1}}
+\providecommand{\norm}[1]{\left\|#1\right\|}
+\providecommand{\sign}[1]{\text{sign}\left(#1\right)}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\providecommand{\w}{\m{w}}
+\providecommand{\what}{\hat{w}}
+\providecommand{\xvec}{\textbf{x}}
+\providecommand{\wvec}{\textbf{w}}
+\providecommand{\yvec}{\textbf{y}}
+\providecommand{\zvec}{\textbf{z}}
+\providecommand{\bvec}{\textbf{b}}
+\providecommand{\RR}{\mathbb{R}}
+
+\begin{document}
+
+\author{}
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Kernels [50 Points]}
+In this section we will work with a regression model called a \emph{normalized RBF network}.
+As usual, we have a dataset ${(x_i, y_i)}$ with $M$ distinct examples, where
+$x_i \in \mathbb{R}^N$ and $y_i \in \mathbb{R}$. We will be performing linear regression,
+and here we will use the RBF kernel to create our basis functions. Recall that the RBF
+kernel is
+\[
+K(y,z) = \exp \left(\frac{-||y - z||^2_2}{2 \sigma^2} \right)
+\]
+where $\sigma$ is known as the ``bandwidth'' and determines the ``width'' of the kernel.
+As $\sigma \rightarrow 0$, $K(y,z)$ tends to $0$ when $y \neq z$ and $1$ when
+$y = z$. As $\sigma \rightarrow \infty$, $K(y,z)$ tends to the same value for all $y$, $z$.
+We will use the RBF kernel and our data points to define $M$ basis functions
+\[
+\phi_i(x) = K(x, x_i)/Z(x)
+\]
+\[
+Z(x) = \sum_{j=1}^M K(x, x_j)
+\]
+In addition, we define a constant bias term $\phi_0(x) = 1$, and define a linear prediction
+function with weights $w_0, \dots, w_M$
+\[
+f(x) = \sum_{i=0}^M w_i \phi_i(x)
+\]
+
+\begin{enumerate}
+
+\item \textit{(10 points)}
+Assume that our loss function is the sum of squared errors on the training data with an
+L2 penalty on the non-bias weights.
+\[
+L(w) = \frac{1}{2}
+\left(\sum_{i=1}^M (y_i - f(x_i))^2 +
+\lambda \sum_{i=1}^M w_i^2 \right)
+\]
+We will also define a helpful matrix
+\[
+Q = 
+\begin{bmatrix}
+\phi_0(x_1) & \phi_1(x_1) & \dots & \phi_M(x_1) \\
+\vdots & \vdots & \ddots & \vdots \\
+\phi_0(x_M) & \phi_1(x_M) & \dots & \phi_M(x_M) \\
+\end{bmatrix}
+\]
+Using this matrix, give a closed form solution for the optimal weights $w^*$.
+
+\item \textit{(20 points)}
+Choosing the bandwidth is very important, as setting it too high or too low can lead to
+suboptimal results. Give the optimal weights $w^*$ that result as $\sigma \rightarrow \infty$.
+You do not need to give a rigorous proof of optimality, but you should justify your answer
+reasonably.
+
+(Hint 1) Consider what happens to $\phi_i(x_j)$ as $\sigma \rightarrow \infty$. \\
+(Hint 2) Let's define $\bar{y} = \sum_i y_i/M$.
+
+\item \textit{(20 points)}
+Now let's assume that we have no bias term and no $L2$ penalty, so
+\[
+f(x) = \sum_{i=1}^M w_i \phi_i(x)
+\]
+\[
+L(w) = \frac{1}{2}
+\left(\sum_{i=1}^M (y_i - f(x_i))^2 \right)
+\]
+Give the optimal weights $w^*$ as $\sigma \rightarrow 0$. Again, you do not need a rigorous
+proof, but you should justify your answer.
+
+\item \textit{(EXTRA CREDIT +5 points)}
+Assume that we add back in the bias term and $L2$ penalty, and choose $\lambda$ to be
+a very small (but non-zero) value. What are the optimal weights $w^*$ as
+$\sigma \rightarrow 0$? Justify your answer.
+
+
+\end{enumerate}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Programming Question [150 Points]}
+
+\subsection{Feedfoward Neural Network in Tensorflow}
+
+For this part of programming, we're going to implement feedfoward neural network
+using Tensorflow (\url{https://www.tensorflow.org/}). Tensorflow is a popular
+open-source computational library for machine learning and deep learning
+applications. With its flexible architecture, Tensorflow allows computation
+deployment to various platform with heterogeneous computational devices (single
+or multi CPUs or GPUs on desktop, server, or mobile device).
+
+In this problem, we're going to do the digit recognition task, where we are
+given an image of a handwritten digit and want to predict what number it
+represents, from $0$ to $9$. The digit images are from a very famous dataset
+MNIST (\url{http://yann.lecun.com/exdb/mnist/}). Before you try to implement the
+model in Tensorflow, please take a look at 
+\begin{verbatim}
+data.py
+\end{verbatim} to see how the data is read in and processed.
+
+First, we're going to implement a 2-hidden-layer feedfoward neural network
+distinguish images whose labels are 3 or 5, a binary classification problem.
+
+\subsubsection{2-Layer Feedforward}
+First, let's define the 2-layer feedfoward neural network mathematically.
+Here, we assume all vectors are row vectors.
+Given a single data point, $\xvec\in\RR^d$, and its label $\yvec\in\RR^C$,
+where $d$ is the number of pixels and $C$ is the number of digit classes,
+the output of the 1st layer is
+\begin{eqnarray}
+	\zvec_1 = f(\xvec W_1 + \bvec_1),
+	\label{eqn:hidden1}
+\end{eqnarray}
+and the output of the 2nd layer is
+\begin{eqnarray}
+	\zvec_2 = f(\zvec_1 W_2 + \bvec_2),
+	\label{eqn:hidden2}
+\end{eqnarray}
+where $\zvec_1,\bvec_1\in\RR^{h_1}$, $\zvec_2,\bvec_2\in\RR^{h_2}$, $W_1\in\RR^{d\times h_1}$,
+$W_2\in\RR^{h_1\times h_2}$ and $f(\cdot)$ is the non-linear transformation.
+Finally, we perform a linear projection into logit space
+\begin{eqnarray}
+	\zvec = \zvec_2 W + \bvec,
+	\label{eqn:logits}
+\end{eqnarray}
+where $\zvec\in\RR^C$, $W\in\RR^{h_2\times C}$ and $\bvec\in\RR^C$.
+
+In the same way as logistic regression, we can then use the logit to compute the
+cross-entropy between the estimated probability and the global labels as we did
+in the last homework.
+
+\subsubsection{Placeholder for inputs}
+The input interface to Tensorflow model is usually defined as placeholder.  The
+basic function is \begin{verbatim} def placeholder_inputs_feedforward()
+\end{verbatim} in \verb|model.py|.
+The purpose of placeholder is to define the data format that the model is
+supposes to accept including input types, input shape and data type. In our
+case, we need the model to read two variables,
+\verb|image_placeholder, label_placeholder|.
+
+Please first read the API information at
+\url{https://www.tensorflow.org/api_docs/python/tf/placeholder} and modify the
+function accordingly.
+
+\subsubsection{Feed Dictionary}
+After you define the placeholders to the model, the next step is to define how
+the data you read in from file maps to the corresponding placeholder. This step
+is carried out in the function 
+\begin{verbatim}
+def fill_feed_dict()
+\end{verbatim}
+In our case, given a batch of images and labels, map them to the corresponding
+placeholders you've defined in the previous section.
+
+\subsubsection{Build 2-layer Feedforward}
+For this part, you need to modify the function
+\begin{verbatim}
+def feed_forward_net()
+\end{verbatim}
+There are three \verb|with| statements defined \verb|variable_scope| for
+implementation of Equation~\eqref{eqn:hidden1}, \eqref{eqn:hidden2} and
+\eqref{eqn:logits}. The required coding for the three blocks is almost
+identical. Therefore, we will only go through for the first coding block
+for \eqref{eqn:hidden1}. In order to transform the input image into the first
+hidden layer, we have to first define two variables, the weight matrix
+$W_1$ and the bias $\bvec_1$. In Tensorflow, those variables can be defined
+using \verb|tf.get_variable()| or \verb|tf.Variable()|. The two methods both
+require information about variable name, shape and data type.
+
+For the non-linear activation function $f(\cdot)$, we will use the \verb|ReLU|
+function. Other traditional popular ones are \verb|sigmoid,tanh| and some
+variants to \verb|ReLU| are \verb|LeakyReLU, PReLU|. Traditionally, more
+non-linearity activation is preferred for shallow (small number of hidden
+layers). But now, because deep learning needs to be really \textbf{deep}, more
+linearity activation is shown to be better. If you're now sure how to use those
+activation functions in Tensorflow, please refer to
+\url{https://www.tensorflow.org/versions/r0.12/api_docs/python/nn/activation_functions_}.
+
+\subsubsection{Cross-entropy Loss}
+Here, we will use the cross-entropy loss as the training objective. Actually,
+the training objective is exactly the same as the objective of logistic
+regression in the previous assignment. Please update the function
+\begin{verbatim}
+def compute_loss()
+\end{verbatim}
+
+\subsubsection{Put Together}
+Now, you already know
+\begin{enumerate}
+	\item how to feed the data to the model,
+	\item how to define the forward pass of the model,
+	\item how to compute the loss.
+\end{enumerate}
+Altogether, the above steps have defined a computation graph in Tensorflow. In
+order to drive the training process, we then need to define how to iterate over
+a sequence batches of data and then minimize the objective along the way. Please see
+the function
+\begin{verbatim}
+def train()
+\end{verbatim} in \verb|train_script.py|. Here, you can modify the number of
+training iterations \verb|max_iters| in \verb|Config class| to specify how many
+epochs you want to have over the training data.
+
+\subsubsection{Evaluation}
+Different from the last homework, here we have separate validation set for
+evaluating your model performance. Since it is a classification task, we're
+going to use the accuracy as evaluation metric. However, since the model reads
+in data in batches, we have to compute the number of correct predictions
+\verb|def eval_prediction()| and
+then calculate the accuracy by dividing the total number of correct predictions
+with the data size \verb|def evaluation()|. Here, please update the function
+\begin{verbatim}
+def evaluation()
+\end{verbatim} in \verb|model.py| to compute the accuracy properly.
+
+\subsubsection{3 VS 5 Binary Classification}
+Here, we need to tune the model to get the better performance.
+Let's do some tunning
+\begin{enumerate}
+	\item Vary the \verb|max_iters| in {40, 60, 80}, and report the trend of the training
+		accuracy and validation accuracy in table.
+	\item Fix the \verb|max_iters=60|, vary the \verb|hidden1_size=hidden2_size|
+		in {32, 64, 128}, and report
+		the change of both training and validation accuracy in table.
+\end{enumerate}
+Please summarize your findings.
+Now, you're ready to submit your code for binary classification. Please first
+make a copy your code into a folder named \verb|binary_code|.
+Copy the best perform model directory to \verb|binary_best_model|.
+
+\subsection{Multi-class Classification}
+As you might notice that the MNIST dataset actually contains 10 classes of digits,
+we have only focus on differentiating 3 vs 5 so far. In this part, we want to
+perform the 10-class digit classification task.
+
+It is quite easy to extend the model we've implemented to support multi-class
+classification. For that purpose, we only have to modify two essential parts:
+\begin{enumerate}
+	\item Modify the function \verb|def data_reader()| in \verb|data.py| to use
+		all images and labels.
+	\item Modify the attribute \verb|num_class| of \verb|Config class| in
+		\verb|model.py|.
+\end{enumerate}
+Let's do some tunning
+\begin{enumerate}
+	\item Varying the \verb|max_iters| in \{300, 400, 500\}, report the change of the training
+		accuracy and validation accuracy in table.
+	\item Fix the \verb|max_iters=400|, varying the
+		\verb|hidden1_size=hidden2_size| in \{32, 64, 128\}, report
+		the change of both training and validation accuracy in table.
+\end{enumerate}
+Please summarize your findings.
+Now, you're ready to submit your code for multi-class classification. Please 
+make a copy your code into a folder named \verb|multi_class_code|.
+Copy the best perform model directory to \verb|mult_class_best_model|.
+
+\subsection{Bonus [+5 Points]}
+We haven't touched anything about regularization so far. Can you do a quick
+investigating and try some regularization techniques for neural network. Please
+describe what you've tried and your findings.
+
+\subsection{Submission}
+Please submit the four folders \verb|binary_class_code|,
+\verb|binary_best_model|, \verb|multi_class_code|, and
+\verb|multi_class_best_model| together with your report.
+
+\end{document}
